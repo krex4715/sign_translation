@@ -28,3 +28,15 @@
 
 ※ ㅗㅐ, ㅗㅏ, ㅜㅔ, ㅜㅓ 는 두개의 모음조합을 입력해야함   
 ※ 아직 ㄺ, ㄻ, ㄼ, ㄽ, ㄾ, ㄿ, ㅀ, ㅄ 는 불가능
+
+
+
+
+***
+## Dependency
+- [mediapipe](https://developers.google.com/mediapipe)   
+    ```pip install mediapipe```
+- [opencv-python](https://pypi.org/project/opencv-python/)   
+    ```pip install opencv-python```
+- [pytorch](https://pytorch.org/)
+- [hangul_utils](https://github.com/kaniblu/hangul-utils)   
