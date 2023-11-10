@@ -7,31 +7,7 @@ from model import gesture_fc_type_vowel, gesture_fc_type_consonant, rockpaper
 from PIL import ImageFont, ImageDraw, Image
 from hangul_utils import join_jamos
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-model_vowel = gesture_fc_type_vowel().to(device)
-model_consonant = gesture_fc_type_consonant().to(device)
-
-model_vowel.load_state_dict(torch.load('./FC_Model_vowel.pt'))
-model_consonant.load_state_dict(torch.load('./FC_Model.pt'))
-
-print('Model loaded Successfully')
-
-
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands()
-
-# font_path = './BMDOHYEON_ttf.ttf'
-# font_path = './BMJUA_ttf.ttf'
-# font_path = './NanumGothic.ttf'
-
-font_path = './휴먼매직체.ttf'
-font = ImageFont.truetype(font_path, 30)
-
-
-
-
+from util import *
 
 
 
@@ -73,153 +49,21 @@ Target = [
 
 
 
-def landmarks(data):
-    return np.array([[landmark['x'], landmark['y'], landmark['z']] for landmark in data]).transpose()
 
 
+######################### 
 
-# The normalization function
-def normalize_landmarks(landmarks):
-    landmarks_array = np.array([[landmark.x, landmark.y, landmark.z] for landmark in landmarks], dtype=np.float32)
-    norm_landmarks = landmarks_array - np.mean(landmarks_array, axis=0)
-    max_dist = np.max(np.linalg.norm(norm_landmarks, axis=1))
-    norm_landmarks = norm_landmarks / max_dist
-    return norm_landmarks
+model_vowel = gesture_fc_type_vowel().to(device)
+model_consonant = gesture_fc_type_consonant().to(device)
 
+model_vowel.load_state_dict(torch.load('./model_pt/FC_Model_vowel.pt'))
+model_consonant.load_state_dict(torch.load('./model_pt/FC_Model.pt'))
 
-def assign_hands_by_position(multi_hand_landmarks, image_width):
-    # Assuming that the wrist is the first landmark in the hand landmarks list
-    wrist_landmark_index = 0
-
-    # Extract the x-coordinate of the wrist landmark for each hand
-    hands_x_positions = [
-        hand.landmark[wrist_landmark_index].x for hand in multi_hand_landmarks
-    ]
+print('Model loaded Successfully')
 
 
-    left_hand_index = np.argmin(hands_x_positions)
-    right_hand_index = 1 - left_hand_index  # The other hand is the right hand
-
-    # Assign hands based on left and right position
-    if hands_x_positions[left_hand_index] * image_width < hands_x_positions[right_hand_index] * image_width:
-        hand_landmarks_0 = multi_hand_landmarks[left_hand_index]
-        hand_landmarks_1 = multi_hand_landmarks[right_hand_index]
-    else:
-        hand_landmarks_0 = multi_hand_landmarks[right_hand_index]
-        hand_landmarks_1 = multi_hand_landmarks[left_hand_index]
-
-    return hand_landmarks_0, hand_landmarks_1
-
-
-# 엄지에 원그리기
-def draw_hand_circle(image, hand_landmarks, touching, color, thickness=2, radius=30,THUMB_TIP_IDX=4):
-
-    if touching:
-        thumb_tip = hand_landmarks.landmark[THUMB_TIP_IDX]
-        
-        # 이미지의 크기에 맞춰서 실제 픽셀 좌표로 변환합니다.
-        image_width, image_height = image.shape[1], image.shape[0]
-        thumb_tip_x = int(thumb_tip.x * image_width)
-        thumb_tip_y = int(thumb_tip.y * image_height)
-        
-        # 원을 그립니다.
-        cv2.circle(image, (thumb_tip_x, thumb_tip_y), radius, color, thickness)
-        
-        return image
-
-
-
-
-
-
-THUMB_INDEX_THRESHOLD = 0.22
-THUMB_MIDDLE_THRESHOLD = 0.22
-
-def calculate_distance(landmark1, landmark2):
-    return np.sqrt((landmark1[0] - landmark2[0])**2 + (landmark1[1] - landmark2[1])**2 + (landmark1[2] - landmark2[2])**2)
-
-def check_fingers_touching(thumb_tip,index_finger_tip,middle_finger_tip, thumb_index_threshold=THUMB_INDEX_THRESHOLD, thumb_middle_threshold=THUMB_MIDDLE_THRESHOLD):
-
-
-    thumb_index_distance = calculate_distance(thumb_tip, index_finger_tip)
-    thumb_middle_distance = calculate_distance(thumb_tip, middle_finger_tip)
-
-    thumb_index_touching = thumb_index_distance < thumb_index_threshold
-    thumb_middle_touching = thumb_middle_distance < thumb_middle_threshold
-
-    return thumb_index_touching, thumb_middle_touching
-
-
-def make_double_consonant(consonant):
-    if consonant == 'ㄱ':
-        return 'ㄲ'
-    elif consonant == 'ㄷ':
-        return 'ㄸ'
-    elif consonant == 'ㅂ':
-        return 'ㅃ'
-    elif consonant == 'ㅅ':
-        return 'ㅆ'
-    elif consonant == 'ㅈ':
-        return 'ㅉ'
-    else:
-        return consonant
-
-
-
-
-def draw_text(image, text, position, font=font, font_size=20, color=(0, 0, 0)):
-    # OpenCV 이미지를 PIL 이미지로 변환
-    image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    draw = ImageDraw.Draw(image_pil)
-
-    # PIL 이미지에 텍스트 쓰기
-    draw.text(position, text, font=font, fill=color)
-
-    # PIL 이미지를 OpenCV 이미지로 다시 변환
-    return cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
-
-def inference_model(norm_landmarks, model):
-    hand_data = []
-    for norm_data in norm_landmarks:
-        tmp= {
-            "x": float(norm_data[0]),
-            "y": float(norm_data[1]),
-            "z": float(norm_data[2])
-        }
-        hand_data.append(tmp)
-    
-    data = torch.tensor(landmarks(hand_data),dtype=torch.float32).unsqueeze(0).to(device)
-    output = model(data).squeeze(0).detach().cpu().numpy()
-    return output
-
-
-
-
-
-
-def vowel_compensation(recorded_letters):
-    """
-    ㅗㅐ = ㅙ
-    ㅗㅏ = ㅘ
-    ㅜㅔ = ㅞ
-    ㅜㅓ = ㅝ
-    """
-    if recorded_letters[-2:] == 'ㅗㅐ':
-        return recorded_letters[:-2] + 'ㅙ'
-    elif recorded_letters[-2:] == 'ㅗㅏ':
-        return recorded_letters[:-2] + 'ㅘ'
-    elif recorded_letters[-2:] == 'ㅜㅔ':
-        return recorded_letters[:-2] + 'ㅞ'
-    elif recorded_letters[-2:] == 'ㅜㅓ':
-        return recorded_letters[:-2] + 'ㅝ'
-    else:
-        return recorded_letters
-
-
-
-
-
-
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands()
 
 
 
@@ -230,8 +74,7 @@ connection_drawing_spec_0 = mp.solutions.drawing_utils.DrawingSpec(color=(250, 6
 landmark_drawing_spec_1 = mp.solutions.drawing_utils.DrawingSpec(color=(0, 250, 30), thickness=1, circle_radius=2)
 connection_drawing_spec_1 = mp.solutions.drawing_utils.DrawingSpec(color=(60, 60, 250), thickness=2)
 
-
-
+########################## 
 thumb_index_touching = False
 thumb_middle_touching = False
 thumb_ring_touching = False
@@ -292,7 +135,7 @@ try:
 
             # 엄지 검지 끝이 터치 : 자음
             if thumb_index_touching:
-                # 검지랑 터치시 왼손에 초록색 원 표시
+                # 검지랑 터치시 왼손에 파란색 원 표시
                 draw_hand_circle(color_image, hand_landmarks_0, True, (0, 255, 0))
 
                 # Hand Sign Recognition (오른손)
@@ -304,7 +147,7 @@ try:
 
             # 엄지 중지 끝이 터치 : 모음
             if thumb_middle_touching:
-                # 엄지랑 터치시 오른손에 빨간색 원 표시
+                # 엄지랑 터치시 오른손에 보라색 원 표시
                 draw_hand_circle(color_image, hand_landmarks_0, True, (255, 0, 255))
 
                 # Hand Sign Recognition (오른손)
@@ -312,13 +155,24 @@ try:
                 predict_idx = np.argmax(output) + 14
                 results = Target[predict_idx]['eng']
                 cv2.putText(color_image,str(results) , (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (5, 0, 255), 3)
-        
+
+            # 엄지 약지 끝이 터치 : 띄어쓰기
+            if thumb_ring_touching:
+                # 엄지랑 터치시 오른손에 주황색 원 표시
+                draw_hand_circle(color_image, hand_landmarks_0, True, (0, 165, 255))
+
+            # 엄지 새끼 끝이 터치 : 지우기
+            if thumb_pinky_touching:
+                # 엄지랑 터치시 오른손에 빨간색 원 표시
+                draw_hand_circle(color_image, hand_landmarks_0, True, (255, 0, 0))
+
 
             # 왼손이 ㅎ이면 : 쌍자음
             if rock_paper_results == 'hieut':
+                # 주먹을 줬을시 왼손에 푸른색 원 표시
+                draw_hand_circle(color_image, hand_landmarks_0, True, (255, 255, 0),THUMB_TIP_IDX=0)
                 rock = True
-                draw_hand_circle(color_image, hand_landmarks_0, True, (0, 0, 255),THUMB_TIP_IDX=0)
-                
+
                 # Hand Sign Recognition (오른손)
                 output = inference_model(norm_landmarks_1, model_consonant)
                 predict_idx = np.argmax(output)
@@ -332,12 +186,12 @@ try:
 
         if thumb_index_touching_list == [True, True, True, False]:
             print('consonant!')
-            # 자음을 기록합니다.
+            # 자음을 기록
             recorded_letters += Target[predict_idx]['key']
 
         if thumb_middle_touching_list == [True, True, True, False]:
             print('vowel!')
-            # 모음을 기록합니다.
+            # 모음을 기록
             recorded_letters += Target[predict_idx]['key']
 
         if thumb_ring_touching_list == [True, True, True, False]:
@@ -352,7 +206,7 @@ try:
             
         if rock_list == [True, True, True, False]:
             print('double consonant!')
-            # 쌍자음을 기록합니다.
+            # 쌍자음을 기록
             recorded_letters += make_double_consonant(Target[predict_idx]['key'])
 
 
@@ -376,8 +230,6 @@ try:
 
 
 
-
-
         if len(recorded_letters) == 0:
             text_img = draw_text(white_background, "Express!", (50, 50))
         else:
@@ -386,32 +238,16 @@ try:
             text_img = draw_text(white_background, join_jamos(recorded_letters), (50, 50))
             
 
-        
-
         combined_image = np.hstack([color_image, text_img])
-
-
-
-            
 
         cv2.imshow('Webcam Feed', combined_image)
 
 
-
-
-
-
         key = cv2.waitKey(1)
-        if key & 0xFF == ord('q'): # q를 누르면 종류
+        if key & 0xFF == ord('q'):
             break
 
         
-                
-
-
-                
-
-
 
 finally:
     cap.release()
