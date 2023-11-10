@@ -23,7 +23,10 @@ mp_hands = mp.solutions.hands
 hands = mp_hands.Hands()
 
 # font_path = './BMDOHYEON_ttf.ttf'
-font_path = './NanumGothic.ttf'
+# font_path = './BMJUA_ttf.ttf'
+# font_path = './NanumGothic.ttf'
+
+font_path = './휴먼매직체.ttf'
 font = ImageFont.truetype(font_path, 30)
 
 
