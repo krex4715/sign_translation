@@ -91,7 +91,7 @@ rock_list = [False, False, False, False]
 recorded_letters = ''
 hangeul = ''
 
-cap = cv2.VideoCapture(0) 
+cap = cv2.VideoCapture(1) 
 try:
     while cap.isOpened():
         ret, frame = cap.read()

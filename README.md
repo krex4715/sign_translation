@@ -1,11 +1,18 @@
-# Hand Sign Recognition
+# Hand Sign Recognition Toy Project
+
+<img src="./img/고급딥러닝.gif" width="49%">
+<img src="./img/delete.gif" width="49%">
+<img src="./img/공백.gif" width="49%">
+<img src="./img/쌍자음.gif" width="49%">
+
+
 
 
 
 ## Instructions
 
 
-<img src="./ref.jpeg" width="50%">   
+<img src="./img/ref.jpeg" width="50%">   
 
 * 양손이 무조건 카메라에 위치해있어야 동작
 * 왼손은 파란색, 오른손은 빨간색
@@ -28,3 +35,5 @@
 
 ※ ㅗㅐ, ㅗㅏ, ㅜㅔ, ㅜㅓ 는 두개의 모음조합을 입력해야함   
 ※ 아직 ㄺ, ㄻ, ㄼ, ㄽ, ㄾ, ㄿ, ㅀ, ㅄ 는 불가능
+
+
