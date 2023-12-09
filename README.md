@@ -1,6 +1,6 @@
 # Hand Sign Recognition Toy Project
 
-<img src="./img/고급딥러닝.gif" width="100%">
+<!-- <img src="./img/고급딥러닝.gif" width="100%"> -->
 <img src="./img/delete.gif" width="100%">
 <img src="./img/공백.gif" width="100%">
 <img src="./img/쌍자음.gif" width="100%">
